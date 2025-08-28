@@ -1,0 +1,99 @@
+.order-details-container {
+  max-width: 800px;
+  margin: 2rem auto;
+  padding: 1rem;
+}
+
+.order-confirmation-header {
+  text-align: center;
+  padding: 2rem;
+  background-color: #e8f5e9; /* A light green for success */
+  border-radius: 8px;
+  margin-bottom: 2rem;
+}
+
+.order-confirmation-header h1 {
+  color: #2e7d32; /* A darker green */
+}
+
+.order-summary-card, .order-item-card {
+  background-color: #f9f9f9;
+  border-radius: 8px;
+  padding: 1.5rem;
+  margin-bottom: 1rem;
+}
+
+.order-items-list {
+  margin-top: 1rem;
+}
+
+.order-item-card {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.order-item-card p {
+  margin: 0;
+}
+
+.order-actions {
+  margin-top: 20px;
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.btn-secondary {
+  display: inline-block;
+  padding: 10px 15px;
+  background-color: #6c757d;
+  color: white;
+  text-decoration: none;
+  border-radius: 5px;
+  text-align: center;
+}
+
+.btn-secondary:hover {
+  background-color: #5a6268;
+}
+
+.btn-danger {
+  background-color: #dc3545;
+  color: white;
+  padding: 10px 15px;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  text-decoration: none;
+  display: inline-block;
+}
+
+.btn-danger:hover {
+  background-color: #c82333;
+}
+
+.btn-danger:disabled {
+  background-color: #e2828b;
+  cursor: not-allowed;
+}
+
+.btn-warning {
+  background-color: #ffc107;
+  color: #212529;
+  padding: 10px 15px;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  text-decoration: none;
+  display: inline-block;
+}
+
+.btn-warning:hover {
+  background-color: #e0a800;
+}
+
+.btn-warning:disabled {
+  background-color: #ffda6a;
+  cursor: not-allowed;
+}
