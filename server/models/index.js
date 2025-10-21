@@ -5,6 +5,8 @@ const Promotion = require('./Promotion');
 const Message = require('./Message');
 const ContentBlock = require('./ContentBlock');
 const NewsletterSubscription = require('./NewsletterSubscription');
+const CustomizationOption = require('./CustomizationOption');
+const Category = require('./Category');
 
 // Define associations
 User.hasMany(Order, {
@@ -57,4 +59,6 @@ module.exports = {
   Message,
   ContentBlock,
   NewsletterSubscription,
+  CustomizationOption,
+  Category,
 };

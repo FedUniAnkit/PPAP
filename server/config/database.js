@@ -24,11 +24,11 @@ const connectDB = async () => {
     await sequelize.authenticate();
     console.log('🐘 PostgreSQL Connected successfully!');
     
-    // Skip sync for now to avoid issues
-    // if (process.env.NODE_ENV === 'development') {
-    //   await sequelize.sync({ force: false });
-    //   console.log('📊 Database synchronized');
-    // }
+    // Sync database to create missing tables
+    if (process.env.NODE_ENV !== 'production') {
+      await sequelize.sync({ alter: true });
+      console.log('📊 Database synchronized');
+    }
   } catch (error) {
     console.error('Database connection error:', error.message);
     process.exit(1);

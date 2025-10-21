@@ -40,11 +40,18 @@ const Product = sequelize.define('Product', {
     }
   },
   category: {
-    type: DataTypes.ENUM('pizza', 'appetizer', 'drink', 'dessert'),
-    allowNull: false
+    type: DataTypes.STRING(50),
+    allowNull: false,
+    validate: {
+      notEmpty: true
+    }
+  },
+  subcategory: {
+    type: DataTypes.STRING(50),
+    allowNull: true
   },
   image: {
-    type: DataTypes.STRING,
+    type: DataTypes.TEXT,
     allowNull: true,
     defaultValue: ''
   },
@@ -76,6 +83,41 @@ const Product = sequelize.define('Product', {
     type: DataTypes.JSONB,
     allowNull: true,
     defaultValue: {}
+  },
+  dietaryInfo: {
+    type: DataTypes.JSONB,
+    allowNull: true,
+    defaultValue: {}
+  },
+  customizationOptions: {
+    type: DataTypes.JSONB,
+    allowNull: true,
+    defaultValue: {}
+  },
+  allergens: {
+    type: DataTypes.ARRAY(DataTypes.STRING),
+    allowNull: true,
+    defaultValue: []
+  },
+  spiceLevel: {
+    type: DataTypes.INTEGER,
+    defaultValue: 0,
+    validate: {
+      min: 0,
+      max: 5
+    }
+  },
+  isPopular: {
+    type: DataTypes.BOOLEAN,
+    defaultValue: false
+  },
+  isNew: {
+    type: DataTypes.BOOLEAN,
+    defaultValue: false
+  },
+  sortOrder: {
+    type: DataTypes.INTEGER,
+    defaultValue: 0
   }
 }, {
   timestamps: true,

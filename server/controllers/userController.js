@@ -147,21 +147,39 @@ const setUserStatus = async (req, res) => {
 // @access  Private/Admin
 const adminResetPassword = async (req, res) => {
   try {
-    const user = await User.findByPk(req.params.id);
-    if (!user) {
-      return res.status(404).json({ success: false, message: 'User not found' });
+    const { newPassword } = req.body;
+    
+    if (!newPassword) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'New password is required' 
+      });
     }
 
-    const resetToken = user.getPasswordResetToken();
-    await user.save({ validate: false });
+    const user = await User.findByPk(req.params.id);
+    if (!user) {
+      return res.status(404).json({ 
+        success: false, 
+        message: 'User not found' 
+      });
+    }
 
-    // Send email to user with reset link
-    await sendPasswordResetByAdminEmail(user, resetToken);
+    // Update password and set force reset flag
+    user.password = newPassword;
+    user.forcePasswordReset = true;
+    user.passwordChangedAt = new Date();
+    await user.save();
 
-    res.json({ success: true, message: `Password reset link sent to ${user.email}` });
+    res.json({ 
+      success: true, 
+      message: `Password updated for ${user.email}` 
+    });
   } catch (error) {
     console.error('Admin password reset error:', error);
-    res.status(500).json({ success: false, message: 'Failed to send password reset email.' });
+    res.status(500).json({ 
+      success: false, 
+      message: 'Failed to reset password.' 
+    });
   }
 };
 

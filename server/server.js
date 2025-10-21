@@ -6,7 +6,7 @@ const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 require('dotenv').config();
 
-const { connectDB } = require('./config/database');
+const { connectDB, sequelize } = require('./config/database');
 require('./models'); // Initialize models and associations
 const errorHandler = require('./middleware/errorHandler');
 
@@ -17,9 +17,12 @@ const userRoutes = require('./routes/userRoutes');
 const contentRoutes = require('./routes/contentRoutes');
 const orderRoutes = require('./routes/orderRoutes');
 const productRoutes = require('./routes/productRoutes');
+const categoryRoutes = require('./routes/categoryRoutes');
 const analyticsRoutes = require('./routes/analyticsRoutes');
 const newsletterRoutes = require('./routes/newsletter');
 const messageRoutes = require('./routes/messageRoutes');
+// const paymentRoutes = require('./routes/paymentRoutes');
+// const notificationRoutes = require('./routes/notificationRoutes');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -27,8 +30,10 @@ const PORT = process.env.PORT || 5000;
 // Connect to database
 connectDB();
 
-// Security middleware
-app.use(helmet());
+// Security middleware (allow cross-origin resource policy so frontend (3000) can load images from API (5000))
+app.use(helmet({
+  crossOriginResourcePolicy: { policy: 'cross-origin' }
+}));
 
 // CORS configuration
 app.use(cors({
@@ -60,7 +65,7 @@ app.use(cors({
     return callback(new Error('Not allowed by CORS'));
   },
   credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
 }));
 
@@ -78,8 +83,10 @@ const limiter = rateLimit({
 app.use(limiter);
 
 // Body parsing middleware
-app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ extended: true }));
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ extended: true, limit: '50mb' }));
+app.use(express.text({ limit: '50mb' }));
+app.use(express.raw({ limit: '50mb' }));
 
 // Static files
 app.use('/uploads', express.static('uploads'));
@@ -91,18 +98,39 @@ app.use('/api/users', userRoutes);
 app.use('/api/content', contentRoutes);
 app.use('/api/orders', orderRoutes);
 app.use('/api/products', productRoutes);
+app.use('/api/categories', categoryRoutes);
 app.use('/api/analytics', analyticsRoutes);
 app.use('/api/newsletter', newsletterRoutes);
 app.use('/api/messages', messageRoutes);
 
+// Simple ping route to verify /api/upload is reachable
+app.get('/api/upload/ping', (req, res) => res.json({ success: true, message: 'upload base ok' }));
+console.log('[BOOT] Mounting /api/upload routes...');
+app.use('/api/upload', require('./routes/uploadRoutes'));
 
+// Health check route with DB connectivity status
+app.get('/api/health', async (req, res) => {
+  let dbStatus = {
+    connected: false,
+    error: null
+  };
 
-// Health check route
-app.get('/api/health', (req, res) => {
+  try {
+    await sequelize.authenticate({
+      // short timeout safeguard; if not supported, default driver timeout applies
+      // Note: pg does not use this option directly; kept for future compatibility
+    });
+    dbStatus.connected = true;
+  } catch (err) {
+    dbStatus.connected = false;
+    dbStatus.error = err?.message || 'Unknown DB error';
+  }
+
   res.json({ 
     success: true, 
     message: 'Pizza Order API is running!',
-    timestamp: new Date().toISOString()
+    timestamp: new Date().toISOString(),
+    db: dbStatus
   });
 });
 

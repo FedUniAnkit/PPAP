@@ -3,13 +3,11 @@ const { User } = require('../models');
 
 const authenticate = async (req, res, next) => {
   try {
-    console.log('Authentication middleware called for:', req.method, req.path);
     
     // Get token from Authorization header
     const authHeader = req.header('Authorization');
     
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      console.log('No valid authorization header found');
       return res.status(401).json({ 
         success: false,
         message: 'Access denied. No valid token provided.' 
@@ -19,7 +17,6 @@ const authenticate = async (req, res, next) => {
     const token = authHeader.replace('Bearer ', '').trim();
     
     if (!token) {
-      console.log('Empty token provided');
       return res.status(401).json({ 
         success: false,
         message: 'Access denied. No token provided.' 
@@ -30,7 +27,7 @@ const authenticate = async (req, res, next) => {
     let decoded;
     try {
       decoded = jwt.verify(token, process.env.JWT_SECRET);
-      console.log('Token verified for user ID:', decoded.userId);
+      // Our tokens are issued with { id: <userId> }
     } catch (jwtError) {
       console.error('Token verification failed:', jwtError.message);
       return res.status(401).json({ 
@@ -41,12 +38,11 @@ const authenticate = async (req, res, next) => {
     }
 
     // Find user
-    const user = await User.findByPk(decoded.userId, {
+    const user = await User.findByPk(decoded.id, {
       attributes: { exclude: ['password'] }
     });
     
     if (!user) {
-      console.log('User not found for token, user ID:', decoded.userId);
       return res.status(401).json({ 
         success: false,
         message: 'User not found for this token.' 
@@ -55,14 +51,12 @@ const authenticate = async (req, res, next) => {
 
     // Check if user is active
     if (!user.isActive) {
-      console.log('User account is deactivated for:', user.email);
       return res.status(403).json({ 
         success: false,
         message: 'Account is deactivated. Please contact support.' 
       });
     }
 
-    console.log('Authentication successful for user:', user.email);
     // Attach user to request
     req.user = user;
     next();
@@ -88,3 +82,4 @@ const authorize = (...roles) => {
 };
 
 module.exports = { authenticate, authorize };
+

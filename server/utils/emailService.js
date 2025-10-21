@@ -5,12 +5,12 @@ const ejs = require('ejs');
 
 // Create a transporter using SMTP or other transport
 const transporter = nodemailer.createTransport({
-  host: process.env.SMTP_HOST || 'smtp.gmail.com', // Use Gmail for development
-  port: process.env.SMTP_PORT || 587,
-  secure: process.env.SMTP_SECURE === 'true',
+  host: process.env.EMAIL_HOST || 'smtp.gmail.com',
+  port: process.env.EMAIL_PORT || 587,
+  secure: false,
   auth: {
-    user: process.env.SMTP_USER,
-    pass: process.env.SMTP_PASSWORD,
+    user: process.env.EMAIL_USER,
+    pass: process.env.EMAIL_PASS,
   },
 });
 
@@ -45,7 +45,7 @@ const sendEmail = async (to, subject, templateName, data = {}) => {
 
     // Send mail with defined transport object
     const info = await transporter.sendMail({
-      from: `"${process.env.EMAIL_FROM_NAME || 'Komorebi Pizza'}" <${process.env.EMAIL_FROM || process.env.SMTP_USER}>`,
+      from: `"${process.env.EMAIL_FROM_NAME || 'Komorebi Pizza'}" <${process.env.EMAIL_USER}>`,
       to,
       subject,
       html,
@@ -119,8 +119,8 @@ const sendBulkMarketingEmail = async (recipientEmails, subject, content) => {
     // Send one email to yourself (or a dedicated address) and BCC all recipients
     // This is more efficient and private than sending individual emails.
     const info = await transporter.sendMail({
-      from: `"${process.env.EMAIL_FROM_NAME || 'Komorebi Pizza'}" <${process.env.EMAIL_FROM || process.env.SMTP_USER}>`,
-      to: process.env.EMAIL_FROM || process.env.SMTP_USER, // The 'to' field is required, send to self
+      from: `"${process.env.EMAIL_FROM_NAME || 'Komorebi Pizza'}" <${process.env.EMAIL_USER}>`,
+      to: process.env.EMAIL_USER, // The 'to' field is required, send to self
       bcc: recipientEmails,
       subject,
       html: content, // Assuming content is HTML
@@ -159,6 +159,33 @@ const sendNewsletter = async (subscribers, subject, content) => {
   return results;
 };
 
+const sendStaffInvitationEmail = async (user, temporaryPassword) => {
+  await sendEmail(
+    user.email,
+    'Welcome to Komorebi Pizza - Staff Account Created',
+    'staff-invitation',
+    {
+      name: user.name,
+      email: user.email,
+      temporaryPassword,
+      loginUrl: `${process.env.CLIENT_URL}/login`,
+    }
+  );
+};
+
+const sendOTPEmail = async (user, otp) => {
+  await sendEmail(
+    user.email,
+    'Password Reset OTP - Komorebi Pizza',
+    'otp-email',
+    {
+      name: user.name,
+      otp,
+      expiresIn: '10 minutes',
+    }
+  );
+};
+
 module.exports = {
   sendEmail,
   sendPasswordResetEmail,
@@ -166,4 +193,6 @@ module.exports = {
   sendOrderConfirmationEmail,
   sendNewsletter,
   sendBulkMarketingEmail,
+  sendStaffInvitationEmail,
+  sendOTPEmail,
 };

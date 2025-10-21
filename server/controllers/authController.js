@@ -1,7 +1,8 @@
-const crypto = require('crypto');
 const bcrypt = require('bcryptjs');
-const { User } = require('../models');
-const { generateToken } = require('../config/auth');
+const jwt = require('jsonwebtoken');
+const crypto = require('crypto');
+const User = require('../models/User');
+const { sendEmail } = require('../config/email');
 const emailService = require('../utils/emailService');
 const { sequelize } = require('../config/database');
 
@@ -15,18 +16,33 @@ const hashResetToken = (token) => {
   return crypto.createHash('sha256').update(token).digest('hex');
 };
 
+// Generate JWT token
+const generateToken = (userId) => {
+  return jwt.sign({ id: userId }, process.env.JWT_SECRET, {
+    expiresIn: process.env.JWT_EXPIRE || '30d'
+  });
+};
+
 // Register user
 const register = async (req, res) => {
   try {
+    console.log('[REGISTER] Registration attempt for:', req.body.email);
+    console.log('[REGISTER] Request body:', req.body);
+    
     const { name, email, password, phone, role } = req.body;
 
     // Check if user already exists
     const existingUser = await User.findOne({ where: { email } });
     if (existingUser) {
-      return res.status(400).json({ message: 'User already exists' });
+      console.log('[REGISTER] User already exists:', email);
+      return res.status(400).json({ 
+        success: false,
+        message: 'User already exists' 
+      });
     }
 
     // Create new user
+    console.log('[REGISTER] Creating new user with role:', role || 'customer');
     const user = await User.create({
       name,
       email,
@@ -35,8 +51,23 @@ const register = async (req, res) => {
       role: role || 'customer'
     });
 
+    console.log('[REGISTER] User created:', { id: user.id, email: user.email, role: user.role });
+
     // Generate token
+    console.log('[REGISTER] User ID for token generation:', user.id);
+    console.log('[REGISTER] User dataValues:', user.dataValues);
     const token = generateToken(user.id);
+    console.log('[REGISTER] Generated token:', token);
+    
+    // Verify the token we just created
+    try {
+      const decoded = jwt.verify(token, process.env.JWT_SECRET);
+      console.log('[REGISTER] Token verification test - decoded:', decoded);
+    } catch (tokenError) {
+      console.error('[REGISTER] Token verification failed:', tokenError);
+    }
+
+    console.log('[REGISTER] Registration successful for:', email);
 
     res.status(201).json({
       success: true,
@@ -49,38 +80,82 @@ const register = async (req, res) => {
       }
     });
   } catch (error) {
+    console.error('[REGISTER] Registration error:', error);
     if (error.name === 'SequelizeValidationError') {
       const messages = error.errors.map(err => err.message);
       return res.status(400).json({ success: false, message: messages.join(', ') });
     }
-    res.status(500).json({ message: error.message });
+    res.status(500).json({ 
+      success: false,
+      message: 'Registration failed. Please try again.' 
+    });
   }
 };
 
 // Login user
 const login = async (req, res) => {
   try {
+    console.log('[LOGIN] Login attempt for:', req.body.email);
     const { email, password } = req.body;
 
-    // Check if user exists
-    const user = await User.findOne({ where: { email } });
-    if (!user) {
-      return res.status(401).json({ message: 'Invalid credentials' });
+    if (!email || !password) {
+      console.log('[LOGIN] Missing email or password');
+      return res.status(400).json({ 
+        success: false,
+        message: 'Email and password are required' 
+      });
     }
+
+    // Check if user exists
+    const user = await User.findOne({ 
+      where: { email },
+      attributes: ['id', 'name', 'email', 'password', 'role', 'isActive', 'forcePasswordReset']
+    });
+    if (!user) {
+      console.log('[LOGIN] User not found:', email);
+      return res.status(401).json({ 
+        success: false,
+        message: 'Invalid credentials' 
+      });
+    }
+
+    console.log('[LOGIN] User found:', email);
+    console.log('[LOGIN] User object:', { id: user.id, email: user.email, role: user.role });
 
     // Check password
     const isMatch = await user.comparePassword(password);
     if (!isMatch) {
-      return res.status(401).json({ message: 'Invalid credentials' });
+      console.log('[LOGIN] Password mismatch for:', email);
+      return res.status(401).json({ 
+        success: false,
+        message: 'Invalid credentials' 
+      });
     }
 
     // Check if user is active
     if (!user.isActive) {
-      return res.status(401).json({ message: 'Account is deactivated' });
+      console.log('[LOGIN] User inactive:', email);
+      return res.status(401).json({ 
+        success: false,
+        message: 'Account is deactivated' 
+      });
     }
 
     // Generate token
+    console.log('[LOGIN] User ID for token generation:', user.id);
+    console.log('[LOGIN] User dataValues:', user.dataValues);
     const token = generateToken(user.id);
+    console.log('[LOGIN] Generated token:', token);
+    
+    // Verify the token we just created
+    try {
+      const decoded = jwt.verify(token, process.env.JWT_SECRET);
+      console.log('[LOGIN] Token verification test - decoded:', decoded);
+    } catch (tokenError) {
+      console.error('[LOGIN] Token verification failed:', tokenError);
+    }
+    
+    console.log('[LOGIN] Login successful for:', email);
 
     res.json({
       success: true,
@@ -94,7 +169,11 @@ const login = async (req, res) => {
       }
     });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    console.error('[LOGIN] Login error:', error);
+    res.status(500).json({ 
+      success: false,
+      message: 'Login failed. Please try again.' 
+    });
   }
 };
 
@@ -132,56 +211,73 @@ const getMe = async (req, res) => {
   }
 };
 
-// Forgot password
-const forgotPassword = async (req, res) => {
+// Forgot password - send OTP (replaces old token-based system)
+const forgotPasswordOTP = async (req, res) => {
   try {
+    console.log('[FORGOT_PASSWORD] Request for:', req.body.email);
     const { email } = req.body;
+
+    if (!email) {
+      return res.status(400).json({
+        success: false,
+        message: 'Email is required'
+      });
+    }
+
+    // Find user by email - only select necessary fields
+    const user = await User.findOne({ 
+      where: { email },
+      attributes: ['id', 'name', 'email', 'otpCode', 'otpExpires']
+    });
     
-    // 1) Get user based on email
-    const user = await User.findOne({ where: { email } });
     if (!user) {
+      console.log('[FORGOT_PASSWORD] User not found:', email);
+      // Don't reveal if user exists or not for security
       return res.status(200).json({
         success: true,
-        message: 'If your email exists in our system, you will receive a password reset link.'
+        message: 'If an account with this email exists, you will receive an OTP shortly.'
       });
     }
 
-    // 2) Generate random reset token
-    const resetToken = generateResetToken();
-    const hashedToken = hashResetToken(resetToken);
-    
-    // 3) Save hashed token and expiry (10 minutes from now)
-    await user.update({
-      passwordResetToken: hashedToken,
-      passwordResetExpires: Date.now() + 10 * 60 * 1000 // 10 minutes
-    });
+    console.log('[FORGOT_PASSWORD] User found:', email);
 
+    // Generate OTP manually to avoid model method issues
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    const otpExpires = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+
+    // Update user with OTP
+    await User.update(
+      { 
+        otpCode: otp,
+        otpExpires: otpExpires
+      },
+      { where: { id: user.id } }
+    );
+
+    console.log('[FORGOT_PASSWORD] OTP generated for:', email);
+
+    // Send OTP email
     try {
-      // 4) Send email with reset token
-      await emailService.sendPasswordResetEmail(user, resetToken);
-      
-      res.status(200).json({
-        success: true,
-        message: 'Password reset link sent to email!'
-      });
-    } catch (error) {
-      // If email sending fails, clear the reset token
-      await user.update({
-        passwordResetToken: null,
-        passwordResetExpires: null
-      });
-      
-      console.error('Error sending email:', error);
+      await emailService.sendOTPEmail(user, otp);
+      console.log('[FORGOT_PASSWORD] OTP email sent successfully to:', email);
+    } catch (emailError) {
+      console.error('[FORGOT_PASSWORD] Failed to send OTP email:', emailError);
       return res.status(500).json({
         success: false,
-        message: 'There was an error sending the email. Please try again later.'
+        message: 'Failed to send OTP email. Please try again.'
       });
     }
+
+    res.status(200).json({
+      success: true,
+      message: 'OTP sent to your email address. Please check your inbox.'
+    });
+
   } catch (error) {
-    console.error('Forgot password error:', error);
+    console.error('[FORGOT_PASSWORD] Error:', error);
     res.status(500).json({
       success: false,
-      message: 'An error occurred while processing your request.'
+      message: 'Something went wrong. Please try again.'
     });
   }
 };
@@ -408,14 +504,201 @@ const updateForcedPassword = async (req, res) => {
   }
 };
 
+// Update password when forced (for staff first login)
+const updatePasswordForced = async (req, res) => {
+  try {
+    const { newPassword } = req.body;
+    const userId = req.user.id;
+
+    if (!newPassword) {
+      return res.status(400).json({
+        success: false,
+        message: 'New password is required'
+      });
+    }
+
+    const user = await User.findByPk(userId);
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+
+    // For forced password reset, we don't need to verify current password
+    // since this is for first-time login with temporary password
+    
+    // Update password and remove force reset flag
+    user.password = newPassword;
+    user.forcePasswordReset = false;
+    user.passwordChangedAt = new Date();
+    await user.save();
+
+    // Generate new token
+    const token = generateToken(user.id);
+
+    // Return updated user object
+    const updatedUser = {
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      forcePasswordReset: false
+    };
+
+    res.status(200).json({
+      success: true,
+      token,
+      user: updatedUser,
+      message: 'Password updated successfully!'
+    });
+  } catch (error) {
+    console.error('Update forced password error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'An error occurred while updating your password.'
+    });
+  }
+};
+
+// Generate temporary password
+const generateTemporaryPassword = () => {
+  return Math.random().toString(36).slice(-8);
+};
+
+
+// Verify OTP and reset password
+const resetPasswordWithOTP = async (req, res) => {
+  try {
+    console.log('[RESET_PASSWORD_OTP] Request for:', req.body.email);
+    const { email, otp, newPassword } = req.body;
+
+    if (!email || !otp || !newPassword) {
+      return res.status(400).json({
+        success: false,
+        message: 'Email, OTP, and new password are required'
+      });
+    }
+
+    // Find user
+    const user = await User.findOne({ where: { email } });
+    if (!user) {
+      console.log('[RESET_PASSWORD_OTP] User not found:', email);
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid request'
+      });
+    }
+
+    // Verify OTP
+    if (!user.verifyOTP(otp)) {
+      console.log('[RESET_PASSWORD_OTP] Invalid or expired OTP for:', email);
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid or expired OTP'
+      });
+    }
+
+    console.log('[RESET_PASSWORD_OTP] OTP verified for:', email);
+
+    // Update password
+    user.password = newPassword;
+    user.otpCode = null;
+    user.otpExpires = null;
+    user.passwordChangedAt = new Date();
+    await user.save();
+
+    console.log('[RESET_PASSWORD_OTP] Password reset successful for:', email);
+
+    res.status(200).json({
+      success: true,
+      message: 'Password reset successful. You can now login with your new password.'
+    });
+
+  } catch (error) {
+    console.error('[RESET_PASSWORD_OTP] Error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Something went wrong. Please try again.'
+    });
+  }
+};
+
+// Create staff account (admin only)
+const createStaff = async (req, res) => {
+  try {
+    console.log('[ADMIN] Create staff endpoint called');
+    console.log('[ADMIN] Request body:', req.body);
+    console.log('[ADMIN] User making request:', req.user?.email);
+    
+    const { name, email, phone, address } = req.body;
+
+    // Check if user already exists
+    const existingUser = await User.findOne({ where: { email } });
+    if (existingUser) {
+      console.log('[ADMIN] User already exists:', email);
+      return res.status(400).json({ 
+        success: false,
+        message: 'User with this email already exists' 
+      });
+    }
+
+    // Generate temporary password
+    const temporaryPassword = generateTemporaryPassword();
+    console.log('[ADMIN] Generated temporary password:', temporaryPassword);
+    
+    // Create new staff user
+    const newUser = await User.create({
+      name,
+      email,
+      password: temporaryPassword,
+      phone,
+      address,
+      role: 'staff',
+      forcePasswordReset: true
+    });
+
+    // Send email invitation
+    try {
+      console.log(`[ADMIN] Sending staff invitation email to: ${email}`);
+      await emailService.sendStaffInvitationEmail(newUser, temporaryPassword);
+      console.log(`✅ Staff invitation email sent successfully to: ${email}`);
+    } catch (emailError) {
+      console.error('❌ Failed to send invitation email:', emailError);
+      // Don't fail the account creation if email fails
+    }
+
+    console.log(`[ADMIN] Staff account created by admin ${req.user.email} for ${email}`);
+    console.log('[ADMIN] Sending response with temporary password:', temporaryPassword);
+
+    res.status(201).json({
+      success: true,
+      message: 'Staff account created successfully. Invitation email sent.',
+      user: {
+        id: newUser.id,
+        name: newUser.name,
+        email: newUser.email,
+        role: newUser.role
+      },
+      temporaryPassword: temporaryPassword
+    });
+  } catch (error) {
+    console.error('Create staff account error:', error);
+    res.status(500).json({ 
+      success: false,
+      message: 'Failed to create staff account' 
+    });
+  }
+};
+
 module.exports = {
   register,
   login,
   getMe,
-  forgotPassword,
+  forgotPassword: forgotPasswordOTP,
   resetPassword,
+  resetPasswordWithOTP,
   updatePassword,
-  forcePasswordReset,
-  checkPasswordReset,
-  updateForcedPassword,
+  updatePasswordForced,
+  createStaff
 };

@@ -5,14 +5,20 @@ const {
   getMe, 
   forgotPassword, 
   resetPassword, 
+  resetPasswordWithOTP,
   updatePassword,
-  forcePasswordReset,
-  checkPasswordReset, 
-  updateForcedPassword 
+  updatePasswordForced,
+  createStaff
 } = require('../controllers/authController');
 const { authenticate, authorize } = require('../middleware/auth');
 
 const router = express.Router();
+
+// Test endpoint
+router.get('/test', (req, res) => {
+  console.log('[TEST] Test endpoint hit');
+  res.json({ success: true, message: 'Backend is working', timestamp: new Date() });
+});
 
 // @route   POST /api/auth/register
 // @desc    Register a new user
@@ -34,6 +40,11 @@ router.get('/me', authenticate, getMe);
 // @access  Public
 router.post('/forgot-password', forgotPassword);
 
+// @route   POST /api/auth/reset-password-otp
+// @desc    Reset password with otp
+// @access  Public
+router.post('/reset-password-otp', resetPasswordWithOTP);
+
 // @route   PATCH /api/auth/reset-password/:token
 // @desc    Reset password with token
 // @access  Public
@@ -44,19 +55,18 @@ router.patch('/reset-password/:token', resetPassword);
 // @access  Private
 router.patch('/update-password', authenticate, updatePassword);
 
-// @route   GET /api/auth/check-password-reset
-// @desc    Check if password reset is required
+// @route   PATCH /api/auth/update-forced-password
+// @desc    Update password when forced (staff first login)
 // @access  Private
-router.get('/check-password-reset', authenticate, checkPasswordReset);
+router.patch('/update-forced-password', authenticate, updatePasswordForced);
 
-// @route   POST /api/auth/force-password-reset/:userId
-// @desc    Force a user to reset their password (admin only)
+// @route   POST /api/auth/create-staff
+// @desc    Admin creates staff account with temporary password
 // @access  Private/Admin
-router.post('/force-password-reset/:userId', authenticate, authorize('admin'), forcePasswordReset);
-
-// @route   PUT /api/auth/update-forced-password
-// @desc    Update password when forced
-// @access  Private
-router.put('/update-forced-password', authenticate, updateForcedPassword);
+router.post('/create-staff', (req, res, next) => {
+  console.log('[ROUTE] /create-staff endpoint hit');
+  console.log('[ROUTE] Headers:', req.headers.authorization ? 'Token present' : 'No token');
+  next();
+}, authenticate, authorize('admin'), createStaff);
 
 module.exports = router;

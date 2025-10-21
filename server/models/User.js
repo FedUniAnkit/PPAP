@@ -58,9 +58,25 @@ const User = sequelize.define('User', {
     type: DataTypes.DATE,
     allowNull: true
   },
+  otpCode: {
+    type: DataTypes.STRING,
+    allowNull: true
+  },
+  otpExpires: {
+    type: DataTypes.DATE,
+    allowNull: true
+  },
   forcePasswordReset: {
     type: DataTypes.BOOLEAN,
     defaultValue: false
+  },
+  isTemporaryPassword: {
+    type: DataTypes.BOOLEAN,
+    defaultValue: false
+  },
+  accountStatus: {
+    type: DataTypes.ENUM('active', 'pending_staff_registration', 'inactive'),
+    defaultValue: 'active'
   },
   phone: {
     type: DataTypes.STRING,
@@ -122,6 +138,27 @@ User.prototype.getPasswordResetToken = function() {
   this.passwordResetExpires = Date.now() + 10 * 60 * 1000;
 
   return resetToken;
+};
+
+// Instance method to generate OTP
+User.prototype.generateOTP = function() {
+  const otp = Math.floor(100000 + Math.random() * 900000).toString(); // 6-digit OTP
+  this.otpCode = otp;
+  this.otpExpires = Date.now() + 10 * 60 * 1000; // 10 minutes
+  return otp;
+};
+
+// Instance method to verify OTP
+User.prototype.verifyOTP = function(otp) {
+  if (!this.otpCode || !this.otpExpires) {
+    return false;
+  }
+  
+  if (Date.now() > this.otpExpires) {
+    return false; // OTP expired
+  }
+  
+  return this.otpCode === otp;
 };
 
 module.exports = User;
