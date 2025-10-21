@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Welcome to <%= appName %> - Staff Account</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f4f4f4;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .logo {
+            color: #e74c3c;
+            font-size: 28px;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+        .credentials {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            border-left: 4px solid #e74c3c;
+            margin: 20px 0;
+        }
+        .credentials h3 {
+            margin-top: 0;
+            color: #e74c3c;
+        }
+        .credential-item {
+            margin: 10px 0;
+            font-family: monospace;
+            background: white;
+            padding: 8px;
+            border-radius: 4px;
+            border: 1px solid #ddd;
+        }
+        .button {
+            display: inline-block;
+            background: #e74c3c;
+            color: white;
+            padding: 12px 30px;
+            text-decoration: none;
+            border-radius: 5px;
+            margin: 20px 0;
+            font-weight: bold;
+        }
+        .warning {
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 20px 0;
+        }
+        .footer {
+            text-align: center;
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid #eee;
+            color: #666;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="logo"><%= appName %></div>
+            <h2>Welcome to Our Team!</h2>
+        </div>
+
+        <p>Hi <strong><%= name %></strong>,</p>
+
+        <p>Your staff account has been created at <%= appName %>. We're excited to have you join our team!</p>
+
+        <div class="credentials">
+            <h3>🔑 Your Login Credentials</h3>
+            <div class="credential-item">
+                <strong>Email:</strong> <%= email %>
+            </div>
+            <div class="credential-item">
+                <strong>Temporary Password:</strong> <%= temporaryPassword %>
+            </div>
+        </div>
+
+        <div class="warning">
+            <strong>⚠️ Important:</strong> This is a temporary password. You will be required to set a new password when you first log in for security reasons.
+        </div>
+
+        <p>To get started:</p>
+        <ol>
+            <li>Click the login button below</li>
+            <li>Use your email and the temporary password provided</li>
+            <li>Create a new secure password when prompted</li>
+            <li>Start managing orders and helping customers!</li>
+        </ol>
+
+        <div style="text-align: center;">
+            <a href="<%= loginUrl %>" class="button">Login to Your Account</a>
+        </div>
+
+        <p>If you have any questions or need assistance, please don't hesitate to contact your administrator.</p>
+
+        <p>Welcome aboard!</p>
+        <p><strong>The <%= appName %> Team</strong></p>
+
+        <div class="footer">
+            <p>&copy; <%= currentYear %> <%= appName %>. All rights reserved.</p>
+            <p>This email was sent to <%= email %></p>
+        </div>
+    </div>
+</body>
+</html>
